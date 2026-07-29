@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ecommerce — Base del proyecto
 
-## Getting Started
+Catálogo de productos con contacto por WhatsApp (sin pagos online). Esta es la
+**Fase 1**: base profesional de Next.js, sin funcionalidades de negocio todavía,
+para validar que el hosting (Duplika, cPanel + Node.js vía Passenger) sea
+compatible antes de invertir tiempo en el catálogo, Prisma y MySQL.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- [Next.js 15](https://nextjs.org/docs) (App Router)
+- React 19 + TypeScript
+- Tailwind CSS 4
+- ESLint
+
+## Estructura de carpetas
+
+```
+src/
+  app/          rutas (App Router): páginas, layouts, route handlers
+  components/   componentes de UI reutilizables, sin lógica de negocio
+  features/     módulos de dominio (ej: features/products más adelante)
+  lib/          inicialización de librerías externas (ej: cliente Prisma)
+  hooks/        custom React hooks reutilizables
+  services/     acceso a datos / APIs externas
+  types/        tipos TypeScript compartidos
+  utils/        funciones puras sin dependencias de negocio
+  actions/      Next.js Server Actions
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Cada carpeta tiene un `README.md` corto explicando su responsabilidad.
+Alias de importación configurado: `@/` apunta a `src/` (ver `tsconfig.json`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Desarrollo local
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Abrir [http://localhost:3000](http://localhost:3000).
 
-To learn more about Next.js, take a look at the following resources:
+## Build de producción
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run build      # genera .next/standalone (+ postbuild copia public/ y .next/static)
+npm run start:standalone   # corre el build standalone: node .next/standalone/server.js
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`next.config.ts` usa `output: "standalone"`: el build resultante en
+`.next/standalone` incluye su propio `server.js` y un `node_modules` mínimo
+con solo las dependencias de runtime. Esto es clave para hosting compartido
+(ver `DEPLOY.md`) porque permite desplegar sin correr `npm install` completo
+en el servidor.
 
-## Deploy on Vercel
+## Despliegue
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Ver [`DEPLOY.md`](./DEPLOY.md) para la guía completa de despliegue en Duplika
+(cPanel + Setup Node.js App / Passenger).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Próximos pasos
+
+Una vez validada la infraestructura en producción: integrar Prisma + MySQL,
+y comenzar con el catálogo de productos.
