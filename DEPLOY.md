@@ -1,88 +1,89 @@
 # Despliegue en Duplika (cPanel + Setup Node.js App / Passenger)
 
-Duplika, como la mayoría de los hostings con soporte Node vía cPanel, corre
-las apps Node usando **Phusion Passenger**. Passenger:
+> ✅ **Verificado en producción** el 2026-07-29 en `ecommerce.segurmaxsolutions.com`.
+> Node.js 24.18.0, Next.js 15.5.22. El flujo de abajo es el que realmente
+> funcionó, no una guía teórica.
 
-- Le asigna a tu app un puerto propio e inyecta esa info en la variable de
+Duplika corre las apps Node usando **Phusion Passenger**, vía la pantalla
+**"Setup Node.js App"** de cPanel. Passenger:
+
+- Le asigna a la app un puerto propio e inyecta esa info en la variable de
   entorno `PORT` (por eso el `server.js` que genera Next.js con
   `output: "standalone"` sirve tal cual: ya lee `process.env.PORT`).
-- Espera un **"Application startup file"** (un `.js` que arranca un server
-  HTTP) dentro de un **"Application root"** que vos elegís en el panel.
-- Te da acceso a un entorno Node propio (virtualenv) con `npm`/`node`, que
-  activás desde una terminal especial que provee el panel.
-
-Hay dos formas de desplegar. **Se recomienda la Opción A** para hosting
-compartido: evita correr el build (que consume bastante RAM/CPU) en el
-servidor.
+- Espera un **"Archivo de inicio de la aplicación"** dentro de una
+  **"Raíz de aplicación"** que vos elegís en el panel. No tiene que
+  llamarse `app.js`: puede ser cualquier ruta relativa dentro de la raíz.
+- Da acceso a una terminal con el entorno virtual de Node activado.
 
 ---
 
-## Opción A (recomendada): build local, subís solo el resultado
+## Configuración verificada en cPanel
 
-### 1. Build local
+En **Setup Node.js App**:
+
+| Campo | Valor usado |
+|---|---|
+| Versión de Node.js | `24.18.0` (recomendado por Duplika) |
+| Modo de aplicación | `Production` |
+| Raíz de aplicación | `next-catalogo` (carpeta bajo el home del usuario) |
+| URL de la aplicación | `ecommerce.segurmaxsolutions.com` |
+| Archivo de inicio de la aplicación | `.next/standalone/server.js` |
+
+⚠️ El primer intento usando `app.js` (con un wrapper `require("./.next/standalone/server.js")`)
+dio **503 Service Unavailable**: Passenger no encontraba el archivo. Apuntar
+el "Archivo de inicio" directo a `.next/standalone/server.js` lo resolvió,
+sin necesidad de ningún wrapper.
+
+## Estructura de carpetas necesaria en el servidor
+
+Con "Raíz de aplicación" = `next-catalogo` y "Archivo de inicio" =
+`.next/standalone/server.js`, el servidor necesita, dentro de esa raíz:
+
+```
+next-catalogo/
+  .next/
+    standalone/
+      server.js        ← el archivo de inicio
+      node_modules/     ← generado por next build, dependencias mínimas de runtime
+      public/           ← copiado ahí (no alcanza con dejarlo solo en la raíz)
+      .next/
+        static/         ← copiado ahí (ídem)
+```
+
+`public/` y `.next/static/` **tienen que estar copiados dentro de
+`.next/standalone/`**, no solo en la raíz del proyecto. Sin esto la app
+levanta pero sirve una página sin estilos ni JS (404 en los assets). El
+script `postbuild` del proyecto (`scripts/copy-standalone-assets.mjs`) hace
+esa copia automáticamente cada vez que corrés `npm run build` local:
 
 ```bash
 npm install
 npm run build
 ```
 
-Esto genera `.next/standalone/` ya autocontenido: incluye su propio
-`server.js`, un `node_modules` mínimo (solo dependencias de runtime), y
-—gracias al script `postbuild`— también `public/` y `.next/static/` copiados
-adentro. En otras palabras, **`.next/standalone` es toda la app**, lista
-para correr con `node server.js`, sin necesidad de `npm install` en el
-servidor.
+Después de esto, `.next/standalone/` en tu máquina ya tiene todo lo de la
+tabla de arriba. Subilo tal cual a `next-catalogo/.next/standalone/` en el
+servidor (Administrador de archivos de cPanel, FTP/SFTP, o Git).
 
-### 2. Subir el proyecto
+## ¿Hace falta "Ejecutar NPM Install" en cPanel?
 
-Subí el **contenido** de `.next/standalone/` (no la carpeta en sí) a un
-directorio en tu cuenta de Duplika, por ejemplo `~/apps/ecommerce`. Podés
-usar:
+No. `.next/standalone/node_modules` ya viene con las dependencias mínimas
+de runtime generadas por el build. Ese botón está para cuando se sube el
+código fuente completo y se buildea en el servidor (más abajo).
 
-- **Administrador de archivos de cPanel** → subir un `.zip` con el contenido
-  de `.next/standalone` y descomprimirlo ahí, o
-- **FTP/SFTP** con FileZilla u otro cliente, o
-- **Git** si Duplika ofrece "Git Version Control" en cPanel (cloná el repo
-  y corré el build ahí mismo — pero eso te lleva a la Opción B).
+## Iniciar / reiniciar la aplicación
 
-### 3. Crear la aplicación Node.js en cPanel
+En la pantalla de la app, botón **"Reiniciar"** (o el botón de start/stop de
+arriba). Es lo único necesario para que Passenger relance el proceso
+`server.js` después de subir cambios.
 
-1. En cPanel, entrá a **"Setup Node.js App"**.
-2. Click en **"Create Application"**.
-3. Configurá:
-   - **Node.js version**: la más alta disponible ≥ 18.18 (idealmente 20 LTS).
-     ⚠️ Si Duplika solo ofrece Node 16 o menor, **avisame antes de seguir**:
-     Next.js 15 no arranca con esa versión.
-   - **Application mode**: `Production`.
-   - **Application root**: la carpeta donde subiste el contenido de
-     `.next/standalone` (ej: `apps/ecommerce`).
-   - **Application URL**: el dominio o subdominio donde se va a servir.
-   - **Application startup file**: `server.js`.
-4. Guardá ("Create"). cPanel crea el entorno Node y te muestra la ruta al
-   `node`/`npm` de ese entorno virtual.
+## Revisar logs
 
-### 4. ¿Hace falta `npm install`?
+En la misma pantalla de "Setup Node.js App" cada aplicación tiene acceso a
+sus logs (stdout/stderr del proceso Node). Si no aparece nada ahí, revisar
+**"Errors"** en cPanel (logs generales del servidor web).
 
-No. `.next/standalone` ya trae su propio `node_modules` con lo mínimo
-necesario. Podés saltear el botón "Run NPM Install" de cPanel.
-
-### 5. Iniciar / reiniciar la aplicación
-
-En la misma pantalla de "Setup Node.js App", tu aplicación creada aparece
-listada. Ahí tenés el botón **"Restart"** (o "Start" la primera vez). Es el
-único paso necesario para que Passenger levante (o relance) el proceso
-`server.js`.
-
-### 6. Revisar logs
-
-- En la lista de aplicaciones de "Setup Node.js App", cada app tiene un
-  enlace a sus logs (stdout/stderr del proceso Node).
-- Alternativamente, cPanel suele guardar logs en
-  `~/logs/<dominio>/passenger.log` o similar (varía según Duplika). Si no
-  aparece nada ahí, revisá **"Errors"** dentro de cPanel (métricas generales
-  del servidor web).
-
-### 7. Actualizar el proyecto (nuevos cambios)
+## Actualizar el proyecto (nuevos cambios)
 
 Cada vez que cambies código:
 
@@ -90,49 +91,41 @@ Cada vez que cambies código:
 npm run build
 ```
 
-y volvés a subir el contenido actualizado de `.next/standalone/` (reemplazando
-los archivos en el servidor), y le das **"Restart"** a la app en cPanel. No
-hace falta recrear la aplicación Node, solo reemplazar archivos y reiniciar.
+y volvés a subir el contenido actualizado de `.next/standalone/` a
+`next-catalogo/.next/standalone/` en el servidor, reemplazando lo que
+había. Después, **"Reiniciar"** la app desde cPanel. No hace falta
+recrearla ni tocar la configuración de Node.js App.
 
 ---
 
-## Opción B: build directo en el servidor
+## Alternativa: build directo en el servidor
 
-Si preferís no subir builds manualmente (por ejemplo, porque usás Git en
-cPanel), podés compilar en el propio servidor:
+Si en algún momento se prefiere no subir el build a mano (por ejemplo,
+usando "Git Version Control" de cPanel para clonar el repo), se puede
+compilar ahí mismo:
 
-1. Subí/cloná el **código fuente completo** del proyecto (no el build) a la
-   `Application root`.
-2. Creá la app Node.js en cPanel igual que en la Opción A, pero con
-   **Application startup file**: `.next/standalone/server.js` (esta ruta
-   solo va a existir después del primer build).
-3. cPanel te da acceso a una terminal con el entorno virtual de Node
-   activado (botón que aparece en la propia pantalla de la app, algo como
-   `source /home/usuario/nodevenv/apps/ecommerce/20/bin/activate && cd /home/usuario/apps/ecommerce`).
-   Ahí corré:
+1. Cloná/subí el **código fuente completo** a `next-catalogo`.
+2. Dejá la misma config de arriba (Archivo de inicio: `.next/standalone/server.js`,
+   que va a existir recién después del primer build).
+3. Entrá a la terminal con el entorno virtual activado (comando que muestra
+   la propia pantalla de la app, algo como
+   `source /home/usuario/nodevenv/next-catalogo/24/bin/activate && cd /home/usuario/next-catalogo`)
+   y corré:
    ```bash
    npm install
    npm run build
    ```
-   (`npm run build` ya ejecuta el `postbuild` que copia `public/` y
-   `.next/static/` dentro de `.next/standalone/`).
 4. Reiniciá la app desde "Setup Node.js App".
 
-**Riesgo de esta opción**: el build de Next.js puede necesitar más
-memoria/CPU de la que un plan de hosting compartido garantiza para procesos
-en background, y podría fallar o ser matado a mitad de camino. Si eso pasa,
-pasate a la Opción A.
+**Riesgo**: el build de Next.js puede necesitar más memoria/CPU de la que
+un plan compartido garantiza para procesos en background. Si el build
+falla o se corta, volvé al flujo de arriba (build local + subida manual).
 
 ---
 
-## Checklist de compatibilidad a confirmar en Duplika
+## Checklist de compatibilidad (ya confirmado en Duplika)
 
-Antes de dar por validada esta fase, confirmá en cPanel:
-
-- [ ] "Setup Node.js App" está disponible y ofrece **Node ≥ 18.18** (ideal 20 LTS).
-- [ ] Se puede crear una app apuntando a un dominio/subdominio de prueba.
-- [ ] El proceso queda corriendo de forma persistente (no se cae solo).
-- [ ] Los logs son accesibles para diagnosticar errores.
-
-Si algún punto falla, es señal de que Duplika no soporta bien Next.js (o
-Node en general) y conviene saberlo ahora, antes de construir el catálogo.
+- [x] "Setup Node.js App" disponible, con Node 24.18.0.
+- [x] Se puede crear una app apuntando a un subdominio real.
+- [x] El build `output: "standalone"` corre y sirve la página con estilos.
+- [x] Reinicio y logs accesibles desde el panel.
