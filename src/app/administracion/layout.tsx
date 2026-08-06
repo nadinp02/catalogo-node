@@ -1,0 +1,30 @@
+import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
+import { auth, signOut } from "@/auth";
+import { AdminSidebar } from "@/features/admin/admin-sidebar";
+
+export default async function AdministracionLayout({ children }: { children: ReactNode }) {
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  async function handleSignOut() {
+    "use server";
+    await signOut({ redirectTo: "/login" });
+  }
+
+  return (
+    <div className="flex min-h-screen flex-col md:flex-row">
+      <AdminSidebar
+        userEmail={session.user.email ?? ""}
+        userRole={session.user.role}
+        signOutAction={handleSignOut}
+      />
+      <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">
+        <div className="mx-auto max-w-6xl">{children}</div>
+      </main>
+    </div>
+  );
+}

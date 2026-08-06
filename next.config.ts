@@ -2,15 +2,27 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
-  // Genera .next/standalone: un build autocontenido con solo las
-  // dependencias necesarias en runtime. Reduce drásticamente lo que
-  // hay que subir/ejecutar en hosting compartido (cPanel/Duplika).
-  output: "standalone",
   // Fija explícitamente la raíz del proyecto para el tracing de archivos.
-  // Sin esto, Next.js puede inferir mal la raíz si detecta otro
-  // package-lock.json en un directorio superior (ej: carpetas compartidas
-  // de hosting como htdocs/).
+  // Sin esto, Next.js infiere mal la raíz porque detecta otro
+  // package-lock.json en un directorio superior (carpetas compartidas de
+  // hosting como htdocs/).
   outputFileTracingRoot: path.join(__dirname),
+  // "ws" (usado por el adapter de Neon) intenta requerir opcionalmente
+  // "bufferutil"/"utf-8-validate". Si webpack lo empaqueta, ese require
+  // opcional se resuelve a un stub vacío en vez de fallar limpio, y "ws"
+  // rompe en runtime ("bufferUtil.mask is not a function"). Excluirlo del
+  // bundle hace que se resuelva con el require nativo de Node, que sí cae
+  // bien al fallback en JS puro cuando esos paquetes no están instalados.
+  serverExternalPackages: ["ws"],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

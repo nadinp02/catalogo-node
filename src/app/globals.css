@@ -1,26 +1,229 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/*
+ * La app es dark-first sin selector de tema (ver <html class="dark"> en
+ * app/layout.tsx): acá solo queda --radius, que no depende del tema. Los
+ * colores viven únicamente en el bloque .dark de abajo — no hay bloque
+ * :root de tema claro a propósito, para no dejar valores muertos/confusos.
+ *
+ * --radius: 0 a propósito — identidad DedSec / software retro, sin
+ * bordes redondeados en ningún lado. @theme inline deriva --radius-sm/md/
+ * lg/xl/2xl/3xl/4xl de esta única variable.
+ */
+:root {
+  --radius: 0rem;
+}
+
+/*
+ * Paleta RETROID v3 — DedSec / software retro / terminal hacker.
+ * Fondo casi negro puro, paneles #111, bordes #2a2a2a. Amarillo es el
+ * color PRINCIPAL de marca (CTAs, botones default, precios, estados
+ * activos de nav) — violeta es el acento secundario decorativo (bordes
+ * hover, chrome de ventana, badges, glitch). El focus ring se mantiene
+ * violeta a propósito (pedido explícito), independiente del color
+ * principal. --success es un caso puntual (no es color de marca) usado
+ * solo por Badge para estados "activo/disponible", imitando el mockup.
+ */
+.dark {
+  --background: #050505;
+  --foreground: #ffffff;
+  --card: #111111;
+  --card-foreground: #ffffff;
+  --popover: #111111;
+  --popover-foreground: #ffffff;
+  /* Amarillo — color principal de marca */
+  --primary: #facc15;
+  --primary-foreground: #050505;
+  --secondary: #18181b;
+  --secondary-foreground: #ffffff;
+  --muted: #131316;
+  --muted-foreground: #a1a1aa;
+  /* Violeta — acento secundario decorativo */
+  --accent: #8b5cf6;
+  --accent-foreground: #ffffff;
+  --destructive: #f87171;
+  --border: #2a2a2a;
+  --input: #2a2a2a;
+  --ring: #8b5cf6;
+  --success: #22c55e;
+  --success-foreground: #052e12;
+  --chart-1: #facc15;
+  --chart-2: #8b5cf6;
+  --chart-3: #a1a1aa;
+  --chart-4: #71717a;
+  --chart-5: #3f3f46;
+  --sidebar: #0d0d0f;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #facc15;
+  --sidebar-primary-foreground: #050505;
+  --sidebar-accent: #18181b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #2a2a2a;
+  --sidebar-ring: #8b5cf6;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Microdetalles retro: scanlines/ruido (ver ScanlineOverlay), glitch de
+   texto sutil en hover, y el flotado del hero. Todo puramente decorativo,
+   nunca interfiere con clicks ni con la legibilidad. */
+@layer utilities {
+  .text-glitch {
+    position: relative;
+    display: inline-block;
+  }
+  .text-glitch:hover,
+  .text-glitch:focus-within {
+    text-shadow:
+      2px 0 #8b5cf6,
+      -2px 0 #facc15;
+  }
+
+  @keyframes float-y {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(8px);
+    }
+  }
+  .animate-float {
+    animation: float-y 6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-float {
+      animation: none;
+    }
+  }
+
+  /* Glitch automático (sin hover) para la palabra RETRO del wordmark.
+     ::before/::after duplican el texto vía attr(data-text) y lo separan
+     en dos mitades de color que se sacuden en direcciones opuestas —
+     el clásico split RGB de glitch, disparado por GlitchText cada 5-8s. */
+  .glitch-auto {
+    position: relative;
+    display: inline-block;
+  }
+  .glitch-auto.is-glitching::before,
+  .glitch-auto.is-glitching::after {
+    content: attr(data-text);
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .glitch-auto.is-glitching::before {
+    color: #8b5cf6;
+    clip-path: inset(0 0 55% 0);
+    animation: glitch-shift-a 400ms steps(2, end);
+  }
+  .glitch-auto.is-glitching::after {
+    color: #facc15;
+    clip-path: inset(55% 0 0 0);
+    animation: glitch-shift-b 400ms steps(2, end);
+  }
+  @keyframes glitch-shift-a {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    20% {
+      transform: translate(-3px, -1px);
+    }
+    40% {
+      transform: translate(3px, 1px);
+    }
+    60% {
+      transform: translate(-2px, 1px);
+    }
+    80% {
+      transform: translate(2px, -1px);
+    }
+  }
+  @keyframes glitch-shift-b {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    20% {
+      transform: translate(3px, 1px);
+    }
+    40% {
+      transform: translate(-3px, -1px);
+    }
+    60% {
+      transform: translate(2px, -1px);
+    }
+    80% {
+      transform: translate(-2px, 1px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glitch-auto.is-glitching::before,
+    .glitch-auto.is-glitching::after {
+      content: none;
+      animation: none;
+    }
+  }
 }
